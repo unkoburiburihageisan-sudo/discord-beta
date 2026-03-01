@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Discord- MultiDevice</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { background-color: #1e1f22; color: #dbdee1; font-family: sans-serif; margin: 0; }
+        .hidden { display: none !important; }
+        /* スクロールバー非表示（スッキリさせるため） */
+        ::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body>
+
+    <div id="app" class="h-screen w-full flex flex-col">
+        
+        <div id="setup-screen" class="flex-1 flex flex-col items-center justify-center p-6 text-center">
+            <h1 class="text-5xl font-black text-white mb-4 tracking-tighter">discord<span class="text-[#5865f2]">-</span></h1>
+            <p class="text-zinc-400 mb-8 text-sm">使用するデバイスのレイアウトを選択してください</p>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-lg">
+                <button onclick="launch('mobile')" class="flex flex-col items-center p-6 bg-[#2b2d31] rounded-2xl hover:bg-[#5865f2] transition-all group">
+                    <i data-lucide="smartphone" class="w-10 h-10 mb-2 group-hover:scale-110 transition"></i>
+                    <span class="font-bold">スマホ</span>
+                </button>
+                <button onclick="launch('tablet')" class="flex flex-col items-center p-6 bg-[#2b2d31] rounded-2xl hover:bg-[#5865f2] transition-all group">
+                    <i data-lucide="tablet" class="w-10 h-10 mb-2 group-hover:scale-110 transition"></i>
+                    <span class="font-bold">iPad / タブレット</span>
+                </button>
+                <button onclick="launch('pc')" class="flex flex-col items-center p-6 bg-[#2b2d31] rounded-2xl hover:bg-[#5865f2] transition-all group">
+                    <i data-lucide="monitor" class="w-10 h-10 mb-2 group-hover:scale-110 transition"></i>
+                    <span class="font-bold">PC / Mac</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="main-ui" class="hidden h-screen w-full flex overflow-hidden">
+            <nav id="server-bar" class="w-16 bg-[#1e1f22] flex flex-col items-center py-3 gap-3 border-r border-black/20 shrink-0">
+                <button onclick="viewMode='dm'; renderSide();" class="w-12 h-12 bg-[#313338] rounded-2xl flex items-center justify-center text-white"><i data-lucide="message-square"></i></button>
+                <div class="w-8 h-[2px] bg-[#35363c]"></div>
+                <div id="srv-list" class="flex flex-col gap-2"></div>
+                <button onclick="addServer()" class="w-12 h-12 rounded-full bg-[#313338] text-green-500 flex items-center justify-center hover:bg-green-500 hover:text-white transition-all"><i data-lucide="plus"></i></button>
+            </nav>
+
+            <aside id="side-menu" class="w-60 bg-[#2b2d31] flex flex-col shrink-0 border-r border-black/10">
+                <div class="h-12 flex items-center px-4 font-bold border-b border-black/10 shadow-sm" id="side-title">DM</div>
+                <div id="list-items" class="flex-1 p-2 space-y-1 overflow-y-auto"></div>
+                <div class="p-3 bg-[#232428] flex items-center gap-2">
+                    <input id="my-id" onchange="myId=this.value" class="bg-transparent text-xs text-white font-bold outline-none w-full" value="User_123">
+                    <button onclick="addFriend()" class="text-zinc-400 hover:text-white"><i data-lucide="user-plus" class="w-4 h-4"></i></button>
+                </div>
+            </aside>
+
+            <main class="flex-1 flex flex-col bg-[#313338] min-w-0 relative">
+                <header class="h-12 border-b border-black/10 flex items-center px-4 shadow-sm font-bold justify-between">
+                    <span id="chat-header">宛先未選択</span>
+                    <button id="back-btn" onclick="toggleMobileMenu()" class="hidden text-zinc-400"><i data-lucide="menu"></i></button>
+                </header>
+                
+                <div id="msg-box" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
+
+                <div class="p-4 flex items-center gap-2">
+                    <button onclick="sendEmoji()" class="text-zinc-400 p-2"><i data-lucide="thumbs-up"></i></button>
+                    <form onsubmit="sendText(event)" class="flex-1">
+                        <input id="input" type="text" placeholder="メッセージ..." class="w-full bg-[#383a40] rounded-lg px-4 py-2 outline-none">
+                    </form>
+                    <button onclick="sendText(event)" class="bg-[#5865f2] p-2 rounded-lg text-white"><i data-lucide="send"></i></button>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        let myId = "User_123";
+        let viewMode = 'dm'; 
+        let currentTarget = "";
+        let friends = ["Discord_Bot"];
+        let servers = [];
+
+        function launch(device) {
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('main-ui').classList.remove('hidden');
+            
+            // スマホレイアウト調整
+            if(device === 'mobile') {
+                document.getElementById('side-menu').classList.add('hidden');
+                document.getElementById('back-btn').classList.remove('hidden');
+            }
+            renderSide();
+            lucide.createIcons();
+        }
+
+        function toggleMobileMenu() {
+            const side = document.getElementById('side-menu');
+            side.classList.toggle('hidden');
+            side.classList.toggle('absolute');
+            side.classList.toggle('z-50');
+            side.classList.toggle('h-full');
+        }
+
+        function renderSide() {
+            const list = document.getElementById('list-items');
+            document.getElementById('side-title').innerText = (viewMode === 'dm' ? "DM" : "チャンネル");
+            
+            if(viewMode === 'dm') {
+                list.innerHTML = friends.map(f => `
+                    <div onclick="select('${f}')" class="p-2 hover:bg-[#35373c] rounded cursor-pointer flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-[10px] font-bold text-white">${f[0]}</div>
+                        <span class="text-sm font-medium">${f}</span>
+                    </div>
+                `).join('');
+            } else {
+                list.innerHTML = `<div class="p-2 text-zinc-500 text-xs font-bold uppercase">Text Channels</div>
+                                  <div class="flex items-center gap-2 p-2 bg-[#3f4147] rounded text-white"><i data-lucide="hash" class="w-4 h-4"></i> 一般</div>`;
+            }
+            lucide.createIcons();
+        }
+
+        function select(name) {
+            currentTarget = name;
+            document.getElementById('chat-header').innerText = name;
+            document.getElementById('msg-box').innerHTML = `<div class="text-center text-zinc-500 text-[10px] py-8"># ${name} のチャットを開始しました</div>`;
+            if(window.innerWidth < 768) toggleMobileMenu();
+        }
+
+        function sendText(e) {
+            if(e) e.preventDefault();
+            const val = document.getElementById('input').value;
+            if(!val || !currentTarget) return;
+            post(val);
+            document.getElementById('input').value = "";
+        }
+
+        function sendEmoji() { if(currentTarget) post("👍", true); }
+
+        function post(text, emoji=false) {
+            const box = document.getElementById('msg-box');
+            box.innerHTML += `
+                <div class="flex gap-3 animate-in fade-in duration-300">
+                    <div class="w-10 h-10 rounded-full bg-[#5865f2] flex items-center justify-center font-bold text-white shrink-0">${myId[0]}</div>
+                    <div>
+                        <div class="font-bold text-white text-sm">${myId} <span class="text-[10px] text-zinc-500 font-normal ml-2">今日 17:00</span></div>
+                        <p class="${emoji ? 'text-4xl' : 'text-zinc-200 text-sm'}">${text}</p>
+                    </div>
+                </div>`;
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function addFriend() {
+            const id = prompt("追加したいIDを入力:");
+            if(id) { friends.push(id); renderSide(); }
+        }
+
+        function addServer() {
+            const name = prompt("サーバー名を入力:");
+            if(name) {
+                servers.push(name);
+                document.getElementById('srv-list').innerHTML = servers.map(s => `
+                    <button onclick="viewMode='server'; select('${s}'); renderSide();" class="w-12 h-12 rounded-full bg-[#313338] hover:bg-[#5865f2] text-white font-bold transition-all">${s[0]}</button>
+                `).join('');
+            }
+        }
+
+        lucide.createIcons();
+    </script>
+</body>
+</html>
